@@ -17,8 +17,36 @@ namespace Bicep.Core.Emit
             var diagnosticWriter = ToListDiagnosticWriter.Create();
 
             var moduleScopeData = GetSupportedScopeInfo(semanticModel, diagnosticWriter);
+            var resourceScopeData = GetResoureScopeInfo(semanticModel, diagnosticWriter);
 
-            return new EmitLimitationInfo(diagnosticWriter.GetDiagnostics(), moduleScopeData);
+            return new EmitLimitationInfo(diagnosticWriter.GetDiagnostics(), moduleScopeData, resourceScopeData);
+        }
+
+        public static ImmutableDictionary<ResourceSymbol, ResourceSymbol?> GetResoureScopeInfo(SemanticModel semanticModel, IDiagnosticWriter diagnosticWriter)
+        {
+            var scopeInfo = new Dictionary<ResourceSymbol, ResourceSymbol?>();
+
+            foreach (var resourceSymbol in semanticModel.Root.ResourceDeclarations)
+            {
+                var scopeProperty = (resourceSymbol.DeclaringResource.Body as ObjectSyntax)?.SafeGetPropertyByName(LanguageConstants.ModuleScopePropertyName);
+                if (scopeProperty == null)
+                {
+                    scopeInfo[resourceSymbol] = null;
+                    continue;
+                }
+
+                var scopeSymbol = semanticModel.GetSymbolInfo(scopeProperty.Value);
+                if (scopeSymbol is not ResourceSymbol targetResourceSymbol)
+                {
+                    scopeInfo[resourceSymbol] = null;
+                    diagnosticWriter.Write(scopeProperty.Value, x => x.InvalidModuleScopeForTenantScope());
+                    continue;
+                }
+
+                scopeInfo[resourceSymbol] = targetResourceSymbol;
+            }
+
+            return scopeInfo.ToImmutableDictionary();
         }
 
         public static ImmutableDictionary<ModuleSymbol, ScopeHelper.ScopeData> GetSupportedScopeInfo(SemanticModel semanticModel, IDiagnosticWriter diagnosticWriter)

@@ -32,6 +32,7 @@ namespace Bicep.Core.Emit
 
         private static ImmutableHashSet<string> ResourcePropertiesToOmit = new [] {
             "dependsOn",
+            "scope",
         }.ToImmutableHashSet();
 
         private static ImmutableHashSet<string> ModulePropertiesToOmit = new [] {
@@ -222,10 +223,16 @@ namespace Bicep.Core.Emit
             writer.WriteStartObject();
 
             var typeReference = EmitHelpers.GetTypeReference(resourceSymbol);
+            var resourceBody = (ObjectSyntax) resourceSymbol.DeclaringResource.Body;
 
             this.emitter.EmitProperty("type", typeReference.FullyQualifiedType);
             this.emitter.EmitProperty("apiVersion", typeReference.ApiVersion);
-            this.emitter.EmitObjectProperties((ObjectSyntax) resourceSymbol.Body, ResourcePropertiesToOmit);
+            if (context.SemanticModel.EmitLimitationInfo.ResoureScopeData[resourceSymbol] is ResourceSymbol scopeResource)
+            {
+                var scopeType = scopeResource.Type as ResourceType ?? throw new ArgumentException("Missing resource type information");
+                this.emitter.EmitProperty("scope", () => this.emitter.EmitUnqualifiedResourceId(scopeResource.DeclaringResource, scopeType.TypeReference));
+            }
+            this.emitter.EmitObjectProperties(resourceBody, ResourcePropertiesToOmit);
 
             // dependsOn is currently not allowed as a top-level resource property in bicep
             // we will need to revisit this and probably merge the two if we decide to allow it

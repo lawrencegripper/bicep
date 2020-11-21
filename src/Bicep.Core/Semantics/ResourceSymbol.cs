@@ -9,15 +9,12 @@ namespace Bicep.Core.Semantics
 {
     public class ResourceSymbol : DeclaredSymbol
     {
-        public ResourceSymbol(ISymbolContext context, string name, ResourceDeclarationSyntax declaringSyntax, SyntaxBase body)
+        public ResourceSymbol(ISymbolContext context, string name, ResourceDeclarationSyntax declaringSyntax)
             : base(context, name, declaringSyntax, declaringSyntax.Name)
         {
-            this.Body = body;
         }
 
         public ResourceDeclarationSyntax DeclaringResource => (ResourceDeclarationSyntax) this.DeclaringSyntax;
-
-        public SyntaxBase Body { get; }
 
         public override void Accept(SymbolVisitor visitor) => visitor.VisitResourceSymbol(this);
 

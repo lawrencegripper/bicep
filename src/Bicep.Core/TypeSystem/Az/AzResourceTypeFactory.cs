@@ -4,6 +4,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using Bicep.Core.Resources;
+using Bicep.Core.Extensions;
 
 namespace Bicep.Core.TypeSystem.Az
 {
@@ -90,7 +91,14 @@ namespace Bicep.Core.TypeSystem.Az
                     var properties = objectType.Properties ?? new Dictionary<string, Azure.Bicep.Types.Concrete.ObjectProperty>();
                     var additionalProperties = objectType.AdditionalProperties != null ? GetTypeReference(objectType.AdditionalProperties, false) : null;
 
-                    return new NamedObjectType(name, GetValidationFlags(isResourceBodyType), properties.Select(kvp => GetTypeProperty(kvp.Key, kvp.Value)), additionalProperties, TypePropertyFlags.None);
+                    var convertedProperties = properties.Select(kvp => GetTypeProperty(kvp.Key, kvp.Value));
+                    if (isResourceBodyType)
+                    {
+                        var scopeProperty = new TypeProperty("scope", new DeferredTypeReference(() => new ResourceScopeReference("resource", ResourceScopeType.ResourceScope)), TypePropertyFlags.WriteOnly);
+                        convertedProperties = convertedProperties.Concat(scopeProperty.AsEnumerable());
+                    }
+
+                    return new NamedObjectType(name, GetValidationFlags(isResourceBodyType), convertedProperties, additionalProperties, TypePropertyFlags.None);
                 }
                 case Azure.Bicep.Types.Concrete.ArrayType arrayType:
                 {

@@ -182,21 +182,23 @@ namespace Bicep.Core.Emit
             return  ConvertExpression(namePropertySyntax.Value);
         }
 
-        public LanguageExpression GetLocallyScopedResourceIdExpression(ResourceDeclarationSyntax resourceSyntax, ResourceTypeReference typeReference)
+        public IEnumerable<LanguageExpression> GetResourceNameSegments(ResourceDeclarationSyntax resourceSyntax, ResourceTypeReference typeReference)
         {
-            IEnumerable<LanguageExpression> nameSegments;
             if (typeReference.Types.Length == 1)
             {
-                nameSegments = GetResourceNameExpression(resourceSyntax).AsEnumerable();
+                return GetResourceNameExpression(resourceSyntax).AsEnumerable();
             }
-            else
-            {
-                nameSegments = typeReference.Types.Select(
-                    (type, i) => new FunctionExpression(
-                        "split",
-                        new LanguageExpression[] { GetResourceNameExpression(resourceSyntax), new JTokenExpression("/") },
-                        new LanguageExpression[] { new JTokenExpression(i) }));
-            }
+            
+            return typeReference.Types.Select(
+                (type, i) => new FunctionExpression(
+                    "split",
+                    new LanguageExpression[] { GetResourceNameExpression(resourceSyntax), new JTokenExpression("/") },
+                    new LanguageExpression[] { new JTokenExpression(i) }));
+        }
+
+        public LanguageExpression GetLocallyScopedResourceIdExpression(ResourceDeclarationSyntax resourceSyntax, ResourceTypeReference typeReference)
+        {
+            var nameSegments = GetResourceNameSegments(resourceSyntax, typeReference);
 
             return ScopeHelper.FormatLocallyScopedResourceId(
                 context.SemanticModel,
